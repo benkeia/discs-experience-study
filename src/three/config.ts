@@ -1,0 +1,152 @@
+import { DiscEngineConfig } from '../types';
+
+export const DEFAULT_DISC_CONFIG: DiscEngineConfig = {
+  // Navigation & Infinite Loop
+  loopInfini: true,
+
+  // Artwork & Front Material
+  artScale: 1.0,
+  artX: 0,
+  artY: 0,
+  artRot: 0,
+  artBright: 1,
+  artContrast: 1,
+  artSat: 1,
+  texGrain: 0.59,
+  texPrint: 0.35,
+  texScratches: 0.36,
+  texGloss: 1,
+  frontClearcoat: 0.8,
+  frontRough: 0.42,
+  frontMetal: 0.48,
+
+  // Back CD Photorealistic Diffraction Shader
+  voirDosCD: false,
+  backBaseColor: '#ab9da2',
+  backRough: 0.07,
+  backMetal: 0.98,
+  backClearcoat: 1.0,
+  backScratches: 0.01,
+  trackPitch: 740, // nm (DVD standard track pitch: ~740nm, CD: ~1600nm)
+  rainbowIntensity: 2.2,
+  rainbowSaturation: 1.0,
+  anisoSpread: 0.085,
+  order2Intensity: 0.75,
+  specularCore: 0,
+  radialRings: 0.1,
+
+  // Edge & Hub Geometry / Materials
+  edgeColor: '#FFFFFF',
+  edgeRoughness: 0.04,
+  edgeMetalness: 0.55,
+  edgeBleed: 0.026,
+  hubColor: '#FFFFFF',
+  hubTransmission: 0.68,
+  hubRoughness: 0.38,
+  hubIOR: 2,
+  hubMatrixIntensity: 0.85,
+  hubMatrixWidth: 0.4,
+  hubFrostedEdge: 0.54,
+  discThickness: 0.01,
+  edgeBevel: 1,
+  holeSize: 0.14,
+  hubSize: 0.24,
+
+  // Gallery & Camera
+  galleryScale: 1.08,
+  hGap: 2.3,
+  depthGap: 1,
+  activeDiscY: 0.06,
+  galleryRotX: -30,
+  galleryRotY: -30,
+  inactiveScale: 0.8,
+  cameraDistance: 4.4,
+  cameraFOV: 40,
+
+  // Lighting & Atmosphere
+  exposure: 0.95,
+  environmentIntensity: 1.25,
+  keyIntensity: 0.85,
+  keyColor: '#FFF9E8',
+  keyX: 3.5,
+  keyY: -8,
+  fillIntensity: 0.35,
+  rimIntensity: 0.85,
+  rimColor: '#499FF5',
+  topStripIntensity: 2.2,
+  fogColor: '#FFFFFF',
+
+  // Hover & Physics (A24)
+  hoverTiltStrength: 0.32,
+  dragSensitivity: 0.95,
+  dragVelocitySmoothing: 0.32,
+  dragMaxVelocity: 0.5,
+  friction: 0.89,
+  maxSpinAngle: 180,
+  resetDuration: 1.2,
+  flipDuration: 2.35,
+  flipElasticAmp: 1.2,
+  flipElasticPeriod: 1.35,
+  dragStartDistance: 5,
+  snapDuration: 0.46,
+  flowLean: 0.055,
+  flowLeanMax: 0.3,
+  flowBank: 0.32,
+  flowDip: 0.014,
+  flowDipMax: 0.09,
+  followTight: 15,
+  followBase: 11,
+  followFalloff: 1.15,
+  followMin: 6.5,
+  snapFreq: 9.5,
+  snapDamping: 12,
+  wipePush: 0.002,
+  wipePushMax: 0.55,
+  wipeSpin: 0.014,
+  wipeSpinMax: 0.45,
+  wipeMinSpeed: 6,
+  pushDamping: 4.5,
+  pushReturn: 3.4,
+  pressDepth: 0.55,
+  pressTilt: 1.5,
+
+  // A24 Scribble Rings
+  scribbleEnabled: true,
+  scribbleOnHover: true, // Activé par défaut au survol du CD actif
+  scribbleColor: '#000000',
+  scribbleFps: 10,
+  scribblePoints: 24,
+  scribbleJitter: 0.028,
+  scribbleLoops: 2,
+  scribbleLoopGap: 0.045,
+  scribblePadding: 0.06,
+  scribbleWidth: 0.012,
+  scribbleSweep: 0.68,
+  scribbleSweepJitter: 0.4,
+  scribbleIn: [0.3, 0.5, 0.72],
+  scribbleOut: [0.72, 0.5, 0.3],
+  scribbleLag: 15,
+
+  // Éclairage Ambiant Adaptatif (Chameleon Lighting - désactivé par défaut)
+  chameleonEnabled: false,
+  chameleonIntensity: 0.55,
+  chameleonAura: true,
+  chameleonRim: true,
+  chameleonReflections: true,
+
+  // Tactile Sound Design (Web Audio API)
+  soundEnabled: true,
+  soundVolume: 0.65,
+  soundDiscChange: 'glitch',
+  soundDiscSnap: 'snap',
+  soundDiscFlip: 'velvet',
+  soundDiscTap: 'none',
+  soundDiscFlick: 'hologram',
+  soundIntroCenter: 'whoosh',
+  soundIntroCascade: 'velvet',
+  soundDiscHover: 'none',
+
+  artResolution: 1024
+};
+
+export const CONFIG: DiscEngineConfig = { ...DEFAULT_DISC_CONFIG };
