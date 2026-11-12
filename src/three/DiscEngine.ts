@@ -1268,6 +1268,10 @@ export class DiscEngine {
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
       this.navigateTo(this.targetLogicalIndex() - 1, 'key');
+    } else if (e.key === 'd' || e.key === 'D' || e.key === 'h' || e.key === 'H') {
+      if (this.gui) {
+        this.gui.show(this.gui._hidden);
+      }
     }
   };
 

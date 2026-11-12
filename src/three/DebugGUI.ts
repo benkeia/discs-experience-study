@@ -224,5 +224,11 @@ export function setupDebugGUI(
       .name(buttonLabel);
   }
 
+  const showDebug =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
+  if (!showDebug) {
+    gui.hide();
+  }
+
   return gui;
 }
