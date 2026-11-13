@@ -296,7 +296,9 @@ export class SoundDesignManager {
     if (this.ctx.state === 'suspended') {
       try {
         await this.ctx.resume();
-      } catch {}
+      } catch {
+        // Audio resume may fail if called without user interaction
+      }
     }
   }
 
@@ -1133,7 +1135,9 @@ export class SoundDesignManager {
     if (this.ctx) {
       try {
         void this.ctx.close();
-      } catch {}
+      } catch {
+        // AudioContext may already be closed
+      }
       this.ctx = null;
     }
   }

@@ -467,14 +467,14 @@ export class DiscEngine {
       {
         pushX: clamp(this.wipeVX * w.wipePush, -w.wipePushMax, w.wipePushMax),
         pushY: -clamp(this.wipeVY * w.wipePush, -w.wipePushMax, w.wipePushMax),
-        pushRotVY: clamp(this.wipeVX * w.wipeSpin, -w.wipeSpinMax, w.wipeSpinMax),
-        pushRotVX: clamp(this.wipeVY * w.wipeSpin, -w.wipeSpinMax, w.wipeSpinMax)
+        pushRotY: clamp(this.wipeVX * w.wipeSpin, -w.wipeSpinMax, w.wipeSpinMax),
+        pushRotX: clamp(this.wipeVY * w.wipeSpin, -w.wipeSpinMax, w.wipeSpinMax)
       },
       {
         pushX: 0,
         pushY: 0,
-        pushRotVY: 0,
-        pushRotVX: 0,
+        pushRotY: 0,
+        pushRotX: 0,
         duration: 0.85,
         ease: 'elastic.out(1, 0.45)',
         overwrite: 'auto',
@@ -496,13 +496,13 @@ export class DiscEngine {
       inst,
       {
         pushZ: -w.pressDepth,
-        pushRotVY: this.raycastManager.hitUV.x * w.pressTilt,
-        pushRotVX: -this.raycastManager.hitUV.y * w.pressTilt
+        pushRotY: this.raycastManager.hitUV.x * w.pressTilt,
+        pushRotX: -this.raycastManager.hitUV.y * w.pressTilt
       },
       {
         pushZ: 0,
-        pushRotVY: 0,
-        pushRotVX: 0,
+        pushRotY: 0,
+        pushRotX: 0,
         duration: 0.7,
         ease: 'back.out(2.2)',
         overwrite: 'auto',
@@ -1068,7 +1068,9 @@ export class DiscEngine {
 
     try {
       this.container.setPointerCapture(pointerId);
-    } catch {}
+    } catch {
+      // Pointer capture might fail if pointer is released immediately
+    }
 
     return true;
   }
@@ -1184,7 +1186,9 @@ export class DiscEngine {
       if (this.container.hasPointerCapture(pointerId)) {
         this.container.releasePointerCapture(pointerId);
       }
-    } catch {}
+    } catch {
+      // Pointer might already be released
+    }
 
     if (!wasDragging) return;
 

@@ -67,6 +67,17 @@ export const App: React.FC = () => {
         onUnlockAudio={handleUnlockAudio}
         onStartIntro={handleStartIntro}
       />
+
+      {/* Author Credit */}
+      <a
+        href="https://baptiste-saegaert.fr"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-4 right-5 z-40 font-mono text-[10px] tracking-[0.2em] uppercase text-neutral-400 hover:text-neutral-900 transition-colors duration-200 pointer-events-auto"
+        aria-label="Portfolio de baptiste."
+      >
+        by baptiste. ↗
+      </a>
     </main>
   );
 };
