@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import gsap from 'gsap';
 import type GUI from 'lil-gui';
 import {
@@ -523,22 +522,17 @@ export class DiscEngine {
 
   private setupSceneAndRenderer(): void {
     const w = CONFIG;
-    RectAreaLightUniformsLib.init();
 
     this.renderer = new THREE.WebGLRenderer({
-      alpha: true,
+      alpha: false,
       antialias: true,
       powerPreference: 'high-performance',
-      preserveDrawingBuffer: true
+      preserveDrawingBuffer: false
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = w.exposure;
     this.renderer.setClearColor(0xffffff, 1);
-
-    if ('transmissionResolutionScale' in this.renderer) {
-      this.renderer.transmissionResolutionScale = 0.5;
-    }
 
     Object.assign(this.renderer.domElement.style, {
       position: 'absolute',
@@ -1458,6 +1452,16 @@ export class DiscEngine {
 
     if (!CONFIG.loopInfini) {
       this.scrollPos = clamp(this.scrollPos, 0, this.discs.length - 1);
+    }
+
+    const currentIdx = this.activeIndex();
+    if (this.prevActiveIdx !== currentIdx) {
+      this.sound.playById(CONFIG.soundDiscChange, currentIdx);
+      this.sound.playById(CONFIG.soundDiscSnap, Math.abs(deltaScroll * 60));
+      if (CONFIG.hapticsEnabled) {
+        this.haptics.tickDiscChange();
+      }
+      this.prevActiveIdx = currentIdx;
     }
 
     // Velocity tracking for momentum flick at release

@@ -11,14 +11,9 @@ export class StudioLightingManager {
   public keyLight: THREE.DirectionalLight;
   public fillLight: THREE.DirectionalLight;
   public rimLight: THREE.DirectionalLight;
-  public topStrip: THREE.RectAreaLight;
-
-  private auraMesh: THREE.Mesh | null = null;
-  private auraMaterial: THREE.MeshBasicMaterial | null = null;
-  private auraTexture: THREE.CanvasTexture | null = null;
+  public topStrip: THREE.DirectionalLight;
 
   private scene: THREE.Scene;
-  private galleryGroup: THREE.Group;
   private config: DiscEngineConfig;
 
   private readonly whiteColor = new THREE.Color(0xffffff);
@@ -26,16 +21,14 @@ export class StudioLightingManager {
   private readonly targetRimColor = new THREE.Color();
   private readonly targetTopStripColor = new THREE.Color();
   private readonly targetFillColor = new THREE.Color();
-  private readonly targetAuraColor = new THREE.Color();
 
   constructor(
     scene: THREE.Scene,
-    galleryGroup: THREE.Group,
-    renderer: THREE.WebGLRenderer,
+    _galleryGroup: THREE.Group,
+    _renderer: THREE.WebGLRenderer,
     config: DiscEngineConfig
   ) {
     this.scene = scene;
-    this.galleryGroup = galleryGroup;
     this.config = config;
 
     this.ambientLight = new THREE.AmbientLight(0xffffff, 0.25);
@@ -53,49 +46,10 @@ export class StudioLightingManager {
     this.rimLight.position.set(-3.5, 3.5, -2);
     scene.add(this.rimLight);
 
-    this.topStrip = new THREE.RectAreaLight(0xffffff, config.topStripIntensity, 6, 0.4);
+    // Directional top-strip light avoiding mobile GPU float LTC shader glitches
+    this.topStrip = new THREE.DirectionalLight(0xffffff, config.topStripIntensity * 0.45);
     this.topStrip.position.set(0, 3.2, 3);
-    this.topStrip.lookAt(0, 0, 0);
     scene.add(this.topStrip);
-
-    this.setupBackdropAura(renderer);
-  }
-
-  private setupBackdropAura(renderer: THREE.WebGLRenderer): void {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-      grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-      grad.addColorStop(0.25, 'rgba(255, 255, 255, 0.75)');
-      grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.35)');
-      grad.addColorStop(0.75, 'rgba(255, 255, 255, 0.1)');
-      grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 256, 256);
-    }
-
-    this.auraTexture = new THREE.CanvasTexture(canvas);
-    this.auraTexture.colorSpace = THREE.SRGBColorSpace;
-    this.auraTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-
-    const auraGeo = new THREE.PlaneGeometry(10, 7.5);
-    this.auraMaterial = new THREE.MeshBasicMaterial({
-      map: this.auraTexture,
-      color: new THREE.Color(0xffffff),
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      toneMapped: false
-    });
-
-    this.auraMesh = new THREE.Mesh(auraGeo, this.auraMaterial);
-    this.auraMesh.position.set(0, 0, -0.6);
-    this.auraMesh.renderOrder = -50;
-    this.auraMesh.visible = false;
-    this.galleryGroup.add(this.auraMesh);
   }
 
   /**
@@ -108,16 +62,9 @@ export class StudioLightingManager {
     this.targetRimColor.copy(this.baseRimColor);
     this.targetTopStripColor.copy(this.whiteColor);
     this.targetFillColor.copy(this.whiteColor);
-    this.targetAuraColor.copy(this.whiteColor);
-    let targetAuraOpacity = 0;
 
     if (w.chameleonEnabled && dominantColor) {
       const intensity = Math.min(1, Math.max(0, w.chameleonIntensity));
-
-      this.targetAuraColor.copy(dominantColor);
-      if (w.chameleonAura) {
-        targetAuraOpacity = intensity * 0.45;
-      }
 
       if (w.chameleonRim) {
         this.targetRimColor.lerp(dominantColor, intensity);
@@ -133,12 +80,6 @@ export class StudioLightingManager {
     this.rimLight.color.lerp(this.targetRimColor, lerpRate);
     this.topStrip.color.lerp(this.targetTopStripColor, lerpRate);
     this.fillLight.color.lerp(this.targetFillColor, lerpRate);
-
-    if (this.auraMaterial && this.auraMesh) {
-      this.auraMaterial.color.lerp(this.targetAuraColor, lerpRate);
-      this.auraMaterial.opacity += (targetAuraOpacity - this.auraMaterial.opacity) * lerpRate;
-      this.auraMesh.visible = this.auraMaterial.opacity > 0.005;
-    }
   }
 
   public dispose(): void {
@@ -148,15 +89,5 @@ export class StudioLightingManager {
     this.fillLight.dispose();
     this.rimLight.dispose();
     this.topStrip.dispose();
-
-    if (this.auraMesh) {
-      this.galleryGroup.remove(this.auraMesh);
-      this.auraMesh.geometry.dispose();
-      this.auraMesh = null;
-    }
-    this.auraTexture?.dispose();
-    this.auraTexture = null;
-    this.auraMaterial?.dispose();
-    this.auraMaterial = null;
   }
 }

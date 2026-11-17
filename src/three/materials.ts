@@ -215,15 +215,14 @@ export function createSharedHubMaterials(
     }),
     hubMaterial: new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(config.hubColor),
-      roughness: config.hubRoughness,
-      metalness: 0,
-      transmission: config.hubTransmission,
-      thickness: 0.6,
-      ior: config.hubIOR,
-      clearcoat: 1,
-      clearcoatRoughness: 0.04,
-      envMapIntensity: 1.3,
+      roughness: 0.08,
+      metalness: 0.02,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.03,
+      envMapIntensity: 1.6,
       transparent: true,
+      opacity: 0.55,
+      depthWrite: false,
       side: THREE.DoubleSide
     }),
     matrixMaterial: new THREE.MeshPhysicalMaterial({

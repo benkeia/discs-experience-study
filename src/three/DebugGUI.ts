@@ -8,7 +8,7 @@ export interface DebugGUIHandlers {
   onReplayIntro: () => void;
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
-  topStrip: THREE.RectAreaLight;
+  topStrip: THREE.DirectionalLight;
   backMaterial: THREE.MeshPhysicalMaterial;
   scribbleMaterial: THREE.MeshBasicMaterial;
   sound?: SoundDesignManager;
