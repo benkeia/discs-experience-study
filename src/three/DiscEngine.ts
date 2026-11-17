@@ -1387,8 +1387,9 @@ export class DiscEngine {
    * or scroll the carousel horizontally.
    */
   private startDrag(pointerId: number, deltaX: number, deltaY: number): boolean {
-    // Ignore micro-movements to avoid cancelling click events accidentally
-    if (Math.hypot(deltaX, deltaY) < CONFIG.dragStartDistance) return false;
+    // Ignore micro-movements to avoid cancelling click/tap events accidentally (higher tolerance on touch)
+    const threshold = this.isTouch ? 14 : CONFIG.dragStartDistance;
+    if (Math.hypot(deltaX, deltaY) < threshold) return false;
 
     // On mobile touch: if gesture is predominantly horizontal, prioritize carousel scrolling
     if (this.isTouch && Math.abs(deltaX) >= Math.abs(deltaY)) {
@@ -1520,6 +1521,7 @@ export class DiscEngine {
     if (!this.pointerDown) return;
     const wasDragging = this.isDragging;
     const discBeingSpun = this.spinningDiscIdx;
+    const pressedDisc = this.pressedDiscIdx;
     const pointerId = this.activePointerId;
 
     this.pointerDown = false;
@@ -1545,7 +1547,24 @@ export class DiscEngine {
       // Pointer might already be released
     }
 
-    if (!wasDragging) return;
+    if (!wasDragging) {
+      // Immediate tap dispatch for touchscreens (guarantees flip on first touch)
+      if (this.isTouch) {
+        const targetDiscIdx = pressedDisc >= 0 ? pressedDisc : this.raycastManager.raycastDisc(this.pickMeshes);
+        if (targetDiscIdx >= 0) {
+          const currentActiveIdx = this.activeIndex();
+          if (targetDiscIdx !== currentActiveIdx) {
+            this.applyPressImpulse(targetDiscIdx);
+            const slotDelta = this.wrapDiff(targetDiscIdx, this.scrollPos);
+            this.navigateTo(Math.round(this.scrollPos + slotDelta), 'click');
+          } else {
+            this.flipDisc(currentActiveIdx);
+          }
+          this.suppressClickUntil = performance.now() + 500;
+        }
+      }
+      return;
+    }
 
     // Suppress clicks temporarily (140ms) to prevent mouseup/click triggering right after a drag
     this.suppressClickUntil = performance.now() + 140;
