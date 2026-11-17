@@ -303,15 +303,46 @@ export class SoundDesignManager {
   }
 
   /**
-   * Returns an audio stream track connected to the master synthesizer output.
-   * Used for embedding tactile sound effects into video exports.
+   * Creates an audio stream track connected to the master synthesizer output,
+   * along with an inaudible keep-alive signal so MediaRecorder's MP4 muxer
+   * receives a continuous 48kHz audio clock even during silent pauses.
    */
-  public getMediaStreamTrack(): MediaStreamTrack | null {
+  public createRecordingAudioTrack(): { track: MediaStreamTrack; dispose: () => void } | null {
     if (!this.ctx || !this.masterGain) return null;
     try {
       const dest = this.ctx.createMediaStreamDestination();
       this.masterGain.connect(dest);
-      return dest.stream.getAudioTracks()[0] || null;
+
+      const keepAliveOsc = this.ctx.createOscillator();
+      const keepAliveGain = this.ctx.createGain();
+      keepAliveGain.gain.setValueAtTime(0.00001, this.ctx.currentTime);
+      keepAliveOsc.connect(keepAliveGain);
+      keepAliveGain.connect(dest);
+      keepAliveOsc.start();
+
+      const track = dest.stream.getAudioTracks()[0];
+      if (!track) {
+        keepAliveOsc.stop();
+        keepAliveOsc.disconnect();
+        keepAliveGain.disconnect();
+        this.masterGain.disconnect(dest);
+        return null;
+      }
+
+      return {
+        track,
+        dispose: () => {
+          try {
+            keepAliveOsc.stop();
+            keepAliveOsc.disconnect();
+            keepAliveGain.disconnect();
+            this.masterGain?.disconnect(dest);
+            track.stop();
+          } catch {
+            // Ignore cleanup errors if AudioContext already closed
+          }
+        }
+      };
     } catch {
       return null;
     }

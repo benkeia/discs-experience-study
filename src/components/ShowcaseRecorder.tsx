@@ -9,61 +9,75 @@ interface ShowcaseRecorderProps {
   isReady: boolean;
   containerRef: React.RefObject<HTMLDivElement>;
   onStartShowcase?: () => void;
+  onClose?: () => void;
 }
 
 export const ShowcaseRecorder: React.FC<ShowcaseRecorderProps> = ({
   engine,
   isReady,
   containerRef,
-  onStartShowcase
+  onStartShowcase,
+  onClose
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPlayingDemo, setIsPlayingDemo] = useState(false);
   const [currentMode, setCurrentMode] = useState<AspectRatioMode>('fullscreen');
   const [progressPercent, setProgressPercent] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [totalSeconds, setTotalSeconds] = useState(16);
+  const [totalSeconds, setTotalSeconds] = useState(25);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const autoStartedRef = useRef(false);
 
-  // Set container dimensions and scale factor to fit within browser window
+  // Set responsive CSS stage preview while locking the internal WebGL buffer to exact 1080p
   const applyContainerDimensions = useCallback((mode: AspectRatioMode) => {
     const el = containerRef.current;
     if (!el) return;
+    const parentMain = el.parentElement;
 
     if (mode === 'fullscreen') {
+      if (parentMain) {
+        parentMain.style.backgroundColor = '#ffffff';
+      }
       el.style.position = 'absolute';
       el.style.inset = '0';
       el.style.width = '100%';
       el.style.height = '100%';
       el.style.transform = 'none';
       el.style.margin = '0';
-      engine?.handleResize();
+      el.style.boxShadow = 'none';
+      el.style.borderRadius = '0';
+      el.style.overflow = 'visible';
+      engine?.setFixedRenderSize(null, null);
       return;
     }
 
-    const targetW = mode === '16:9' ? 1920 : 1080;
-    const targetH = mode === '16:9' ? 1080 : 1920;
+    // Dark studio backdrop around the recording stage so the 16:9 or 9:16 frame stands out cleanly
+    if (parentMain) {
+      parentMain.style.backgroundColor = '#0c0c0e';
+    }
 
-    const winW = window.innerWidth;
-    const winH = window.innerHeight;
-    const scale = Math.min((winW * 0.92) / targetW, (winH * 0.92) / targetH, 1);
-
-    el.style.position = 'absolute';
-    el.style.left = '50%';
-    el.style.top = '50%';
-    el.style.width = `${targetW}px`;
-    el.style.height = `${targetH}px`;
-    el.style.marginLeft = `-${targetW / 2}px`;
-    el.style.marginTop = `-${targetH / 2}px`;
-    el.style.transform = `scale(${scale})`;
-    el.style.transformOrigin = 'center center';
-    el.style.boxShadow = '0 25px 60px -15px rgba(0, 0, 0, 0.15)';
-    el.style.borderRadius = mode === '9:16' ? '32px' : '16px';
+    el.style.position = 'relative';
+    el.style.inset = 'auto';
+    el.style.margin = '0';
+    el.style.transform = 'none';
+    el.style.backgroundColor = '#ffffff';
     el.style.overflow = 'hidden';
+    el.style.boxShadow = '0 25px 80px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.14)';
 
-    engine?.handleResize();
+    if (mode === '16:9') {
+      // Responsive 16:9 stage that adapts automatically to any browser window size
+      el.style.width = 'min(94vw, calc(86vh * 16 / 9))';
+      el.style.height = 'min(86vh, calc(94vw * 9 / 16))';
+      el.style.borderRadius = '16px';
+      engine?.setFixedRenderSize(1920, 1080);
+    } else {
+      // Responsive 9:16 vertical stage for Instagram Stories / Reels / TikTok
+      el.style.width = 'min(90vw, calc(88vh * 9 / 16))';
+      el.style.height = 'min(88vh, calc(90vw * 16 / 9))';
+      el.style.borderRadius = '28px';
+      engine?.setFixedRenderSize(1080, 1920);
+    }
   }, [containerRef, engine]);
 
   const handleStartRecording = useCallback(async (mode: '16:9' | '9:16') => {
@@ -76,21 +90,22 @@ export const ShowcaseRecorder: React.FC<ShowcaseRecorderProps> = ({
     setCurrentMode(mode);
     setProgressPercent(0);
     setElapsedSeconds(0);
-    setTotalSeconds(16);
+    setTotalSeconds(25);
 
+    engine.prepareShowcase();
     applyContainerDimensions(mode);
 
-    // Short pause to let layout settle and GPU buffer warm up
+    // Let layout settle and GPU render initial 1080p frame before starting MediaRecorder
     await new Promise((r) => setTimeout(r, 250));
 
     const canvas = engine.getCanvas();
-    const audioTrack = engine.sound?.getMediaStreamTrack();
-    const durationMs = 16500;
+    const audioRecording = engine.sound?.createRecordingAudioTrack() ?? null;
+    const durationMs = 24500;
 
     // Launch video recording and 3D showcase sequence concurrently
     const recordPromise = recordCanvasToVideo({
       canvas,
-      audioTrack,
+      audioTrack: audioRecording?.track,
       durationMs,
       onProgress: (pct, elapsed, total) => {
         setProgressPercent(pct);
@@ -103,7 +118,10 @@ export const ShowcaseRecorder: React.FC<ShowcaseRecorderProps> = ({
 
     try {
       const [recordResult] = await Promise.all([recordPromise, sequencePromise]);
-      const filename = mode === '9:16' ? `discs-story-9-16.${recordResult.extension}` : `discs-showcase-16-9.${recordResult.extension}`;
+      const filename =
+        mode === '9:16'
+          ? `discs-story-9-16.${recordResult.extension}`
+          : `discs-showcase-16-9.${recordResult.extension}`;
       downloadVideoBlob(recordResult.blob, filename);
 
       setToastMessage(`✓ Vidéo ${mode} exportée (${recordResult.extension.toUpperCase()}) !`);
@@ -113,6 +131,7 @@ export const ShowcaseRecorder: React.FC<ShowcaseRecorderProps> = ({
       setToastMessage('Erreur lors de l’export');
       setTimeout(() => setToastMessage(null), 3000);
     } finally {
+      audioRecording?.dispose();
       setIsRecording(false);
       setCurrentMode('fullscreen');
       applyContainerDimensions('fullscreen');
@@ -156,18 +175,18 @@ export const ShowcaseRecorder: React.FC<ShowcaseRecorderProps> = ({
     <>
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] px-5 py-2.5 bg-neutral-900/90 text-white backdrop-blur-md rounded-full shadow-lg font-mono text-xs tracking-wider animate-fade-in pointer-events-none">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[10002] px-5 py-2.5 bg-neutral-900/90 text-white backdrop-blur-md rounded-full shadow-lg font-mono text-xs tracking-wider animate-fade-in pointer-events-none">
           {toastMessage}
         </div>
       )}
 
       {/* Floating Export Controller Bar (Top-Right) */}
       <aside
-        className="fixed top-5 right-5 z-[9990] flex items-center gap-2 select-none"
+        className="fixed top-5 right-5 z-[10001] flex items-center gap-2 select-none"
         aria-label="Enregistrement Vidéo Showcase"
       >
         {!isRecording ? (
-          <div className="flex items-center gap-1.5 p-1 bg-white/75 hover:bg-white/95 backdrop-blur-md border border-neutral-200/80 rounded-full shadow-sm transition-all duration-200">
+          <div className="flex items-center gap-1.5 p-1 bg-white/80 hover:bg-white/95 backdrop-blur-md border border-neutral-200/80 rounded-full shadow-sm transition-all duration-200">
             {/* Play Demo Button */}
             <button
               type="button"
@@ -207,11 +226,26 @@ export const ShowcaseRecorder: React.FC<ShowcaseRecorderProps> = ({
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
               <span>STORY 9:16</span>
             </button>
+
+            {onClose && (
+              <>
+                <span className="w-px h-3.5 bg-neutral-200" />
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-2 py-1.5 rounded-full text-[11px] font-mono text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"
+                  title="Fermer le studio (ou touche R)"
+                  aria-label="Fermer le studio"
+                >
+                  ✕
+                </button>
+              </>
+            )}
           </div>
         ) : (
           /* Active Recording Status Pill */
-          <div className="flex items-center gap-3 px-4 py-2 bg-neutral-900 text-white rounded-full shadow-xl font-mono text-xs tracking-wider animate-pulse">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+          <div className="flex items-center gap-3 px-4 py-2 bg-neutral-900/95 text-white border border-white/15 rounded-full shadow-2xl font-mono text-xs tracking-wider">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
             <span>
               REC {currentMode} ({elapsedSeconds}s / {totalSeconds}s)
             </span>

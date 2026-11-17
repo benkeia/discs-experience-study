@@ -266,6 +266,8 @@ export class DiscEngine {
   private scrollTween: gsap.core.Tween | null = null;
   private flowTween: gsap.core.Tween | null = null;
   private cascadeDelayedCall: gsap.core.Tween | null = null;
+  private showcaseTimeline: gsap.core.Timeline | null = null;
+  private isRunningShowcase = false;
 
   private destroyed = false;
   private initAbortController = new AbortController();
@@ -778,64 +780,295 @@ export class DiscEngine {
   }
 
   /**
-   * Automated showcase sequence for clean, professional video exports (16 seconds).
-   * Sequences smooth carousel glides, 180° flip to Bragg holographic optical diffraction,
-   * gentle 3D light angles, and dynamic momentum flick without any manual intervention.
+   * Resets the scene to a clean, deterministic starting pose before launching
+   * the showcase sequence or video recording.
+   */
+  public prepareShowcase(): void {
+    this.isRunningShowcase = true;
+    this.started = true;
+    this.needsRaycast = false;
+    this.pointerDown = false;
+    this.isDragging = false;
+    this.isHoldingActiveDisc = false;
+    this.spinningDiscIdx = -1;
+    this.pressedDiscIdx = -1;
+
+    this.showcaseTimeline?.kill();
+    this.showcaseTimeline = null;
+    this.scrollTween?.kill();
+    this.flowTween?.kill();
+    this.cascadeDelayedCall?.kill();
+
+    this.scrollPos = 0;
+    this.targetIndex = 0;
+    this.flowVel = 0;
+    this.dragVelocity = 0;
+    this.prevActiveIdx = 0;
+    this.setHoveredDisc(-1);
+    this.raycastManager.pointerNDC.set(0, 0);
+    CONFIG.voirDosCD = false;
+
+    this.instances.forEach((inst, idx) => {
+      gsap.killTweensOf(inst);
+      inst.resetTween?.kill();
+      inst.hoverTween?.kill();
+      inst.hoverUVTween?.kill();
+      inst.pushTween?.kill();
+      inst.resetTween = null;
+      inst.hoverTween = null;
+      inst.hoverUVTween = null;
+      inst.pushTween = null;
+
+      inst.baseFlipY = 0;
+      inst.spinX = 0;
+      inst.spinY = idx === 0 ? -Math.PI * 2 : 0;
+      inst.hover = 0;
+      inst.hoverUVX = 0;
+      inst.hoverUVY = 0;
+      inst.pushX = 0;
+      inst.pushY = 0;
+      inst.pushZ = 0;
+      inst.pushRotX = 0;
+      inst.pushRotY = 0;
+      inst.introProgress = 0;
+    });
+
+    this.stepLayout(1, true);
+  }
+
+  /**
+   * Automated showcase sequence for clean, professional video exports (18 seconds).
+   * Simulates organic human interactions:
+   * - Continuous virtual cursor UV hover & A24 stop-motion scribble rings
+   * - Tactile press impulses & smooth momentum drag/flick with carousel banking (flowVel)
+   * - 180° flip & multi-angle 3D orbital inspection of the holographic Bragg CD back
    */
   public runShowcaseSequence(onUpdate?: (percent: number) => void): Promise<void> {
+    this.prepareShowcase();
+
+    // Helper: simulate cursor entering a disc with elastic wipe wobble + A24 scribble activation
+    const triggerVirtualHover = (idx: number, vx = 26, vy = -15) => {
+      this.wipeVX = vx;
+      this.wipeVY = vy;
+      this.applyHoverWipe(idx);
+      this.sound.playById(CONFIG.soundDiscHover);
+      this.setHoveredDisc(idx);
+    };
+
+    // Helper: simulate clicking a neighbor disc (Z-press impulse + click glide + hover arrival)
+    const triggerVirtualClickNavigate = (targetIdx: number) => {
+      this.raycastManager.hitUV.x = 0.35;
+      this.raycastManager.hitUV.y = 0.18;
+      this.applyPressImpulse(targetIdx);
+      this.navigateTo(targetIdx, 'click');
+    };
+
+    // Helper: simulate a smooth hand drag/glide across multiple discs with real-time flowVel banking
+    const triggerFluidCarouselGlide = (
+      targetScroll: number,
+      duration: number,
+      ease = 'power2.inOut',
+      maxFlowVel = 7.5
+    ) => {
+      this.scrollTween?.kill();
+      this.flowTween?.kill();
+      this.setHoveredDisc(-1);
+      this.isDragging = true;
+
+      const dist = Math.abs(targetScroll - this.scrollPos);
+      if (dist > 1.2 && maxFlowVel > 5) {
+        this.sound.playById(CONFIG.soundDiscFlick, Math.min(1.1, dist / 4));
+      }
+
+      const proxy = {
+        pos: this.scrollPos,
+        lastPos: this.scrollPos,
+        lastTime: performance.now()
+      };
+
+      this.scrollTween = gsap.to(proxy, {
+        pos: targetScroll,
+        duration,
+        ease,
+        onUpdate: () => {
+          const now = performance.now();
+          const dt = Math.max(0.008, (now - proxy.lastTime) / 1000);
+          const instVel = (proxy.pos - proxy.lastPos) / dt;
+          proxy.lastPos = proxy.pos;
+          proxy.lastTime = now;
+
+          this.scrollPos = proxy.pos;
+          this.targetIndex = Math.round(proxy.pos);
+          this.flowVel = clamp(instVel * 1.4, -maxFlowVel, maxFlowVel);
+        },
+        onComplete: () => {
+          this.isDragging = false;
+          const N = this.discs.length;
+          this.scrollPos = N > 0 ? ((targetScroll % N) + N) % N : targetScroll;
+          this.targetIndex = Math.round(this.scrollPos);
+          this.flowTween = gsap.to(this, {
+            flowVel: 0,
+            duration: 0.65,
+            ease: 'power2.out',
+            overwrite: 'auto'
+          });
+        }
+      });
+    };
+
     return new Promise((resolve) => {
-      this.cancelIntroAnimation();
+      const totalDiscs = this.discs.length || 22;
 
       const tl = gsap.timeline({
         onUpdate: () => {
+          const t = tl.time();
           onUpdate?.(Math.round(tl.progress() * 100));
+
+          // Drive continuous orbital virtual cursor UV for 3D hover tilt on the hovered disc
+          if (this.hoveredDiscIdx >= 0) {
+            const hoveredInst = this.instances[this.hoveredDiscIdx];
+            if (hoveredInst) {
+              const ux = Math.sin(t * 2.5) * 0.85;
+              const uy = Math.cos(t * 1.8) * 0.80;
+              hoveredInst.hoverUVX = ux;
+              hoveredInst.hoverUVY = uy;
+              this.raycastManager.pointerNDC.set(ux * 0.5, uy * 0.5);
+            }
+          }
         },
         onComplete: () => {
+          this.isRunningShowcase = false;
+          this.spinningDiscIdx = -1;
+          this.isHoldingActiveDisc = false;
+          this.showcaseTimeline = null;
           resolve();
         }
       });
 
-      // 0.0s: Center spin & cascade entrance
+      this.showcaseTimeline = tl;
+
+      // 1. [0.0s -> 1.5s] Intro Spin & Cascade
+      // 2. [1.5s -> 2.0s] Short natural beat of stillness (0.5s) so hover isn't glued to the intro
       tl.call(() => this.playIntroAnimation(), [], 0);
 
-      // +1.8s: Glide to Disc 1 (Avatar 2)
-      tl.call(() => this.navigateTo(1, 'snap'), [], 1.8);
+      // 3. [2.0s -> 3.9s] Gentle Virtual Hover & A24 Scribble on Disc 0 (Avatar)
+      tl.call(() => triggerVirtualHover(0, 22, -12), [], 2.0);
 
-      // +3.6s: Glide to Disc 2 (Whiplash)
-      tl.call(() => this.navigateTo(2, 'snap'), [], 3.6);
+      // 4. [3.9s -> 5.7s] Tactile Click on Neighbor Disc 1 (Avatar 2) + Hover & Scribble
+      tl.call(() => triggerVirtualClickNavigate(1), [], 3.9);
+      tl.call(() => triggerVirtualHover(1, 20, 12), [], 4.35);
 
-      // +5.4s: Glide to Disc 3 (Spider-Man)
-      tl.call(() => this.navigateTo(3, 'snap'), [], 5.4);
+      // 5. [5.7s -> 7.3s] Smooth Glide across Whiplash to Disc 3 (Spider-Man)
+      tl.call(() => triggerFluidCarouselGlide(3, 1.25, 'power2.inOut', 6.5), [], 5.7);
+      tl.call(() => triggerVirtualHover(3, -20, 12), [], 6.85);
 
-      // +7.2s: Flip Disc 3 to reveal the optical diffraction CD back
-      tl.call(() => this.flipDisc(3), [], 7.2);
-
-      // +9.0s: Subtle 3D oscillation under studio lights to highlight iridescent Bragg tracks
+      // 6. [7.4s -> 13.9s] HERO MOMENT: 180° Flip & 3D Orbital Inspection of the Holographic CD Back
       tl.call(() => {
         const inst = this.instances[3];
-        if (inst) {
-          gsap.to(inst, {
-            spinX: 0.16,
-            spinY: inst.baseFlipY + 0.28,
-            duration: 1.15,
-            yoyo: true,
-            repeat: 1,
-            ease: 'sine.inOut'
-          });
-        }
-      }, [], 9.0);
+        if (!inst) return;
+        this.sound.playById(CONFIG.soundDiscFlip);
 
-      // +11.8s: Flip Disc 3 back to front artwork
-      tl.call(() => this.flipDisc(3), [], 11.8);
+        inst.resetTween?.kill();
+        inst.resetTween = null;
+        inst.baseFlipY = Math.PI;
+        CONFIG.voirDosCD = true;
 
-      // +13.6s: Fast dynamic flick momentum to Disc 5 (Parasite)
-      tl.call(() => this.navigateTo(5, 'flick'), [], 13.6);
+        // Lock active disc in 3D spin mode so stepLayout preserves spinX & ScribbleEffect stays active
+        this.spinningDiscIdx = 3;
+        this.isHoldingActiveDisc = true;
+        this.setHoveredDisc(3);
 
-      // +15.5s: Return smoothly to Disc 0 (Avatar)
-      tl.call(() => this.navigateTo(0, 'snap'), [], 15.5);
+        // Crisp 180° flip to the holographic back (using overwrite: 'auto' so pushTween is never frozen!)
+        gsap.to(inst, {
+          spinY: Math.PI + 0.38,
+          spinX: -0.28,
+          duration: 0.95,
+          ease: 'back.out(1.35)',
+          overwrite: 'auto'
+        });
+      }, [], 7.4);
 
-      // 16.5s: Settle and finish
-      tl.set({}, {}, 16.5);
+      // Sweep 1 (8.4s -> 9.8s): Top-right to bottom-left — full Bragg rainbow orders 1, 2 & 3
+      tl.call(() => {
+        const inst = this.instances[3];
+        if (!inst) return;
+        gsap.to(inst, {
+          spinX: 0.46,
+          spinY: Math.PI - 0.56,
+          duration: 1.35,
+          ease: 'sine.inOut',
+          overwrite: 'auto'
+        });
+      }, [], 8.4);
+
+      // Sweep 2 (9.8s -> 11.2s): Bottom-left to top-left — silver specular streak & hairline scratches
+      tl.call(() => {
+        const inst = this.instances[3];
+        if (!inst) return;
+        gsap.to(inst, {
+          spinX: -0.44,
+          spinY: Math.PI - 0.36,
+          duration: 1.35,
+          ease: 'sine.inOut',
+          overwrite: 'auto'
+        });
+      }, [], 9.8);
+
+      // Sweep 3 (11.2s -> 12.5s): Top-left to bottom-right — center polycarbonate hub & matrix ring
+      tl.call(() => {
+        const inst = this.instances[3];
+        if (!inst) return;
+        gsap.to(inst, {
+          spinX: 0.36,
+          spinY: Math.PI + 0.52,
+          duration: 1.25,
+          ease: 'sine.inOut',
+          overwrite: 'auto'
+        });
+      }, [], 11.2);
+
+      // Flip back 180° to front artwork (12.5s -> 13.6s) and cleanly release hover/press state
+      tl.call(() => {
+        const inst = this.instances[3];
+        if (!inst) return;
+        this.sound.playById(CONFIG.soundDiscFlip);
+        inst.baseFlipY = Math.PI * 2;
+        CONFIG.voirDosCD = false;
+
+        // Clear hover & scribble immediately as it flips back so Spider-Man settles completely flat
+        this.isHoldingActiveDisc = false;
+        this.setHoveredDisc(-1);
+
+        gsap.to(inst, {
+          spinY: Math.PI * 2,
+          spinX: 0,
+          pushX: 0,
+          pushY: 0,
+          pushZ: 0,
+          pushRotX: 0,
+          pushRotY: 0,
+          duration: 1.0,
+          ease: 'back.out(1.35)',
+          overwrite: 'auto',
+          onComplete: () => {
+            this.spinningDiscIdx = -1;
+          }
+        });
+      }, [], 12.5);
+
+      // 7. [14.0s -> 23.1s] Unhurried Forward Glide ALWAYS to the right through ALL remaining CDs
+      //    (from index 3 all the way to `totalDiscs` = 22, wrapping seamlessly back to Disc 0)
+      tl.call(() => {
+        triggerFluidCarouselGlide(totalDiscs, 9.1, 'sine.inOut', 4.2);
+      }, [], 14.0);
+
+      // 8. [23.1s -> 24.5s] Calm settle on Disc 0 with NO hover animation at the end
+      tl.call(() => {
+        this.setHoveredDisc(-1);
+        this.isHoldingActiveDisc = false;
+      }, [], 23.1);
+
+      tl.set({}, {}, 24.5);
     });
   }
 
@@ -997,6 +1230,7 @@ export class DiscEngine {
 
   private updateHoverState(): void {
     this.needsRaycast = false;
+    if (this.isRunningShowcase) return;
     const hitDiscIdx = this.raycastManager.raycastDisc(this.pickMeshes);
 
     if (hitDiscIdx !== this.hoveredDiscIdx) {
@@ -1053,22 +1287,51 @@ export class DiscEngine {
     this.renderer.render(this.scene, this.camera);
   };
 
+  private fixedRenderSize: { width: number; height: number } | null = null;
+
+  /**
+   * Locks the internal WebGL drawing buffer to an exact target resolution (e.g. 1920x1080 or 1080x1920)
+   * at 1x pixel ratio for hardware-compatible H.264 video recording, while CSS scales the display responsively.
+   */
+  public setFixedRenderSize(width: number | null, height: number | null): void {
+    if (width && height) {
+      this.fixedRenderSize = { width, height };
+    } else {
+      this.fixedRenderSize = null;
+    }
+    this.handleResize();
+  }
+
   public handleResize = () => {
     if (!this.renderer || !this.camera) return;
-    const width = Math.max(1, this.container.clientWidth || window.innerWidth);
-    const height = Math.max(1, this.container.clientHeight || window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    this.renderer.setSize(width, height, false);
-    this.camera.aspect = width / height;
 
-    // Portrait / vertical compensation (Stories & Reels 9:16)
-    if (this.camera.aspect < 1) {
-      this.camera.position.z = CONFIG.cameraDistance / (this.camera.aspect * 1.35);
+    if (this.fixedRenderSize) {
+      const { width, height } = this.fixedRenderSize;
+      this.renderer.setPixelRatio(1);
+      this.renderer.setSize(width, height, false);
+      this.camera.aspect = width / height;
     } else {
-      this.camera.position.z = CONFIG.cameraDistance;
+      const width = Math.max(1, this.container.clientWidth || window.innerWidth);
+      const height = Math.max(1, this.container.clientHeight || window.innerHeight);
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      this.renderer.setSize(width, height, false);
+      this.camera.aspect = width / height;
     }
 
+    // Center camera strictly on the active selected CD and pull back in portrait (9:16)
+    // so the active CD and its neighboring discs fit with stylish margins.
+    const centerY = CONFIG.activeDiscY * 0.85;
+    if (this.camera.aspect < 1) {
+      this.camera.position.set(0, centerY, CONFIG.cameraDistance / (this.camera.aspect * 0.92));
+    } else {
+      this.camera.position.set(0, centerY, CONFIG.cameraDistance);
+    }
+    this.camera.lookAt(0, centerY, 0);
+
     this.camera.updateProjectionMatrix();
+    if (this.scene) {
+      this.renderer.render(this.scene, this.camera);
+    }
   };
 
   public getCanvas(): HTMLCanvasElement {
@@ -1084,8 +1347,8 @@ export class DiscEngine {
   /* -------------------------------------------------------------------------- */
 
   private handlePointerDown = (e: PointerEvent): void => {
-    // Only primary left button, ignore clicks originating inside the debug lil-gui
-    if (e.button !== 0 || !e.isPrimary || this.isGuiEvent(e)) return;
+    // Only primary left button, ignore clicks originating inside the debug lil-gui or during showcase
+    if (this.isRunningShowcase || e.button !== 0 || !e.isPrimary || this.isGuiEvent(e)) return;
     void this.sound.resume();
 
     this.cancelIntroAnimation();
@@ -1198,6 +1461,7 @@ export class DiscEngine {
   }
 
   private handlePointerMove = (e: PointerEvent): void => {
+    if (this.isRunningShowcase) return;
     this.isTouch = e.pointerType !== 'mouse';
 
     // Pointer is floating (Hover): compute cursor velocity and request raycasting
@@ -1300,7 +1564,7 @@ export class DiscEngine {
    * - Peripheral disc: navigates the carousel to center that disc.
    */
   private handleClick = (e: MouseEvent): void => {
-    if (this.isGuiEvent(e)) return;
+    if (this.isRunningShowcase || this.isGuiEvent(e)) return;
     if (performance.now() < this.suppressClickUntil) {
       e.preventDefault();
       e.stopPropagation();
@@ -1327,7 +1591,7 @@ export class DiscEngine {
    * to smooth out macOS high-frequency trackpad momentum.
    */
   private handleWheel = (e: WheelEvent): void => {
-    if (e.ctrlKey || this.isGuiEvent(e)) return;
+    if (this.isRunningShowcase || e.ctrlKey || this.isGuiEvent(e)) return;
     e.preventDefault();
     this.wheelController.handleWheel(e);
   };
@@ -1338,6 +1602,7 @@ export class DiscEngine {
    * - Left/Right arrows: navigate one disc at a time.
    */
   private handleKeyDown = (e: KeyboardEvent): void => {
+    if (this.isRunningShowcase) return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (e.key === ' ' || e.key === 'Spacebar') {
       e.preventDefault();
@@ -1364,6 +1629,7 @@ export class DiscEngine {
     const onPointerUp = () => this.endDrag(false);
     const onPointerCancel = () => this.endDrag(true);
     const onPointerLeave = (e: PointerEvent) => {
+      if (this.isRunningShowcase) return;
       if (e.pointerType === 'mouse' && !this.pointerDown && this.hoveredDiscIdx >= 0) {
         this.setHoveredDisc(-1);
       }
@@ -1405,6 +1671,7 @@ export class DiscEngine {
     this.cleanups.forEach((fn) => fn());
     this.cleanups.length = 0;
 
+    this.showcaseTimeline?.kill();
     this.scrollTween?.kill();
     this.flowTween?.kill();
     this.cascadeDelayedCall?.kill();

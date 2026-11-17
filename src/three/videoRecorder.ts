@@ -1,6 +1,6 @@
 /**
  * High-performance WebGL Canvas Video Recorder using the native MediaRecorder API.
- * Captures 60 FPS WebGL frames directly from GPU memory with optional synchronized audio.
+ * Captures 60 FPS 1080p WebGL frames directly from GPU memory with synchronized audio.
  */
 
 export interface RecordingOptions {
@@ -16,12 +16,23 @@ export interface RecordingResult {
   extension: 'mp4' | 'webm';
 }
 
+/**
+ * Selects the most compatible hardware-accelerated H.264 Level 4.2 MP4 codec
+ * (required for 1080p @ 60fps in VLC, QuickTime, and Instagram), with WebM VP9 fallback.
+ */
 export function getPreferredMimeType(): { mimeType: string; extension: 'mp4' | 'webm' } {
   const candidateMimeTypes = [
-    { mimeType: 'video/mp4;codecs=avc1,mp4a.40.2', extension: 'mp4' as const },
+    // H.264 High / Main / Baseline Profile Level 4.2 (supports 1920x1080 & 1080x1920 @ 60fps) + AAC-LC
+    { mimeType: 'video/mp4;codecs="avc1.64002A,mp4a.40.2"', extension: 'mp4' as const },
+    { mimeType: 'video/mp4;codecs="avc1.4D402A,mp4a.40.2"', extension: 'mp4' as const },
+    { mimeType: 'video/mp4;codecs="avc1.42E02A,mp4a.40.2"', extension: 'mp4' as const },
+    { mimeType: 'video/mp4;codecs="avc1.640028,mp4a.40.2"', extension: 'mp4' as const },
+    { mimeType: 'video/mp4;codecs="avc1.42E01E,mp4a.40.2"', extension: 'mp4' as const },
+    { mimeType: 'video/mp4;codecs="avc1.64002A"', extension: 'mp4' as const },
+    { mimeType: 'video/mp4;codecs="avc1.42E01E"', extension: 'mp4' as const },
     { mimeType: 'video/mp4;codecs=avc1', extension: 'mp4' as const },
-    { mimeType: 'video/mp4', extension: 'mp4' as const },
-    { mimeType: 'video/webm;codecs=vp9,opus', extension: 'webm' as const },
+    // WebM VP9 / VP8 fallback
+    { mimeType: 'video/webm;codecs="vp9,opus"', extension: 'webm' as const },
     { mimeType: 'video/webm;codecs=vp9', extension: 'webm' as const },
     { mimeType: 'video/webm;codecs=vp8', extension: 'webm' as const },
     { mimeType: 'video/webm', extension: 'webm' as const }
@@ -39,7 +50,7 @@ export function getPreferredMimeType(): { mimeType: string; extension: 'mp4' | '
 export async function recordCanvasToVideo(options: RecordingOptions): Promise<RecordingResult> {
   const { canvas, audioTrack, durationMs, onProgress } = options;
 
-  // Capture canvas stream at 60 FPS
+  // Capture WebGL canvas stream at 60 FPS
   const stream = canvas.captureStream(60);
 
   if (audioTrack) {
@@ -50,7 +61,8 @@ export async function recordCanvasToVideo(options: RecordingOptions): Promise<Re
 
   const recorder = new MediaRecorder(stream, {
     mimeType,
-    videoBitsPerSecond: 16_000_000 // 16 Mbps for high-fidelity 1080p 60fps WebGL
+    videoBitsPerSecond: 14_000_000, // 14 Mbps for crisp 1080p 60fps H.264
+    audioBitsPerSecond: 192_000
   });
 
   const chunks: Blob[] = [];
@@ -70,6 +82,7 @@ export async function recordCanvasToVideo(options: RecordingOptions): Promise<Re
         window.clearInterval(progressTimer);
         progressTimer = null;
       }
+      stream.getVideoTracks().forEach((t) => t.stop());
     };
 
     recorder.onstop = () => {
@@ -87,7 +100,9 @@ export async function recordCanvasToVideo(options: RecordingOptions): Promise<Re
       reject(err);
     };
 
-    recorder.start(100);
+    // Start recording as a single contiguous stream (no small timeslice)
+    // so the MP4 muxer writes a clean, VLC/QuickTime-compatible GOP & audio interleaving.
+    recorder.start();
 
     progressTimer = window.setInterval(() => {
       const elapsedMs = performance.now() - startTime;
