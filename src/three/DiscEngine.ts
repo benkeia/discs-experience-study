@@ -1322,14 +1322,14 @@ export class DiscEngine {
       this.camera.aspect = width / height;
     }
 
-    // Center camera strictly on the active selected CD and pull back in portrait (9:16)
-    // so the active CD and its neighboring discs fit with stylish margins.
-    const centerY = CONFIG.activeDiscY * 0.85;
-    if (this.camera.aspect < 1) {
-      this.camera.position.set(0, centerY, CONFIG.cameraDistance / (this.camera.aspect * 0.92));
-    } else {
-      this.camera.position.set(0, centerY, CONFIG.cameraDistance);
-    }
+    // Center camera strictly on the active selected CD and frame comfortably in portrait (9:16)
+    // Avoids over-retreating the camera on tall smartphone screens which left an enormous white void.
+    const isPortrait = this.camera.aspect < 1;
+    const centerY = isPortrait ? 0.08 : CONFIG.activeDiscY * 0.85;
+    const camDist = isPortrait
+      ? CONFIG.cameraDistance * Math.max(1.15, Math.min(1.42, 0.68 / this.camera.aspect))
+      : CONFIG.cameraDistance;
+    this.camera.position.set(0, centerY, camDist);
     this.camera.lookAt(0, centerY, 0);
 
     this.camera.updateProjectionMatrix();

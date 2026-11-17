@@ -28,9 +28,8 @@ export class HapticsManager {
   }
 
   /**
-   * Micro-pulse sec & franc (25ms) quand un nouveau CD franchit le centre du carrousel.
-   * Sur Android Chrome, appelle directement navigator.vibrate(25) pour dépasser
-   * l'inertie minimale des moteurs physiques.
+   * Micro-pulse ultra léger (12ms) quand un nouveau CD franchit le centre du carrousel.
+   * Discret, sec et agréable sous le doigt comme une molette crantée.
    */
   public tickDiscChange(): void {
     if (!this.isEnabled) return;
@@ -38,7 +37,7 @@ export class HapticsManager {
     // 1. Android Chrome native Vibration API
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       try {
-        navigator.vibrate(25);
+        navigator.vibrate(12);
         return;
       } catch {
         // Fallback to web-haptics below
@@ -49,14 +48,14 @@ export class HapticsManager {
     const h = this.getInstance();
     if (!h) return;
     try {
-      void h.trigger([{ duration: 25, intensity: 0.8 }]);
+      void h.trigger([{ duration: 12, intensity: 0.45 }]);
     } catch {
       // Silent error catching
     }
   }
 
   /**
-   * Impulsion franche (50ms) lors du flip 180° ou du clic sur un CD.
+   * Impulsion modérée et propre (22ms) lors du flip 180° ou du clic sur un CD.
    */
   public impactFlip(): void {
     if (!this.isEnabled) return;
@@ -64,7 +63,7 @@ export class HapticsManager {
     // 1. Android Chrome native Vibration API
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       try {
-        navigator.vibrate(50);
+        navigator.vibrate(22);
         return;
       } catch {
         // Fallback to web-haptics below
@@ -75,7 +74,7 @@ export class HapticsManager {
     const h = this.getInstance();
     if (!h) return;
     try {
-      void h.trigger([{ duration: 50, intensity: 1.0 }]);
+      void h.trigger([{ duration: 22, intensity: 0.75 }]);
     } catch {
       // Silent error catching
     }

@@ -36,11 +36,11 @@ export const DEFAULT_DISC_CONFIG: DiscEngineConfig = {
   radialRings: 0.1,
 
   // Edge & Hub Geometry / Materials
-  edgeColor: '#FFFFFF',
-  edgeRoughness: 0.04,
-  edgeMetalness: 0.55,
+  edgeColor: '#8a95a3',
+  edgeRoughness: 0.12,
+  edgeMetalness: 0.45,
   edgeBleed: 0.026,
-  hubColor: '#FFFFFF',
+  hubColor: '#9ea8b5',
   hubTransmission: 0.68,
   hubRoughness: 0.38,
   hubIOR: 2,
@@ -64,16 +64,16 @@ export const DEFAULT_DISC_CONFIG: DiscEngineConfig = {
   cameraFOV: 40,
 
   // Lighting & Atmosphere
-  exposure: 0.85,
-  environmentIntensity: 0.75,
-  keyIntensity: 0.95,
+  exposure: 0.82,
+  environmentIntensity: 0.65,
+  keyIntensity: 0.85,
   keyColor: '#FFF9E8',
   keyX: 3.5,
   keyY: -8,
-  fillIntensity: 0.35,
-  rimIntensity: 0.85,
+  fillIntensity: 0.3,
+  rimIntensity: 0.75,
   rimColor: '#499FF5',
-  topStripIntensity: 1.6,
+  topStripIntensity: 1.4,
   fogColor: '#FFFFFF',
 
   // Hover & Physics (A24)

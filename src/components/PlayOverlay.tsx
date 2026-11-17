@@ -71,7 +71,7 @@ export const PlayOverlay: React.FC<PlayOverlayProps> = ({
     setPhase('pressing');
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       try {
-        navigator.vibrate(40);
+        navigator.vibrate(15);
       } catch {
         // Silent
       }
