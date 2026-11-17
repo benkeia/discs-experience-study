@@ -176,6 +176,7 @@ export function setupDebugGUI(
   // 6. Tactile Sound Design & Sound Bank
   const fSound = gui.addFolder('🔊 Sound Design & Banque de Sons');
   fSound.add(config, 'soundEnabled').name('Activer le Son');
+  fSound.add(config, 'hapticsEnabled').name('Vibrations Haptiques (Mobile)');
   fSound
     .add(config, 'soundVolume', 0, 1, 0.05)
     .name('Volume Général')

@@ -7,5 +7,6 @@ export * from './interaction';
 export * from './Lighting';
 export * from './ScribbleEffect';
 export * from './SoundDesign';
+export * from './HapticsManager';
 export * from './DiscMesh';
 export * from './DebugGUI';

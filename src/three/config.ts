@@ -146,6 +146,9 @@ export const DEFAULT_DISC_CONFIG: DiscEngineConfig = {
   soundIntroCascade: 'velvet',
   soundDiscHover: 'none',
 
+  // Web Haptics (Vibration API & iOS Taptic Engine)
+  hapticsEnabled: true,
+
   artResolution: 1024
 };
 

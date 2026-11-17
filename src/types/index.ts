@@ -190,6 +190,9 @@ export interface DiscEngineConfig {
   soundIntroCascade: SoundId;
   soundDiscHover: SoundId;
 
+  // Web Haptics (Vibration API & iOS Taptic Engine)
+  hapticsEnabled: boolean;
+
   artResolution: number;
 }
 

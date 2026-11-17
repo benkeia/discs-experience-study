@@ -26,6 +26,7 @@ import { StudioLightingManager } from './Lighting';
 import { createDiscInstance } from './DiscMesh';
 import { ScribbleEffect } from './ScribbleEffect';
 import { SoundDesignManager } from './SoundDesign';
+import { HapticsManager } from './HapticsManager';
 import {
   RaycastManager,
   WheelController,
@@ -232,7 +233,9 @@ export class DiscEngine {
   private lighting!: StudioLightingManager;
   private scribbleEffect!: ScribbleEffect;
   public sound!: SoundDesignManager;
+  public haptics!: HapticsManager;
   private prevActiveIdx = 0;
+  private hasInteracted = false;
 
   // Materials, Geometries & Shared Textures
   private backMaterial?: THREE.MeshPhysicalMaterial;
@@ -416,6 +419,9 @@ export class DiscEngine {
     const inst = this.instances[idx];
     if (!inst) return;
     this.sound.playById(CONFIG.soundDiscFlip);
+    if (CONFIG.hapticsEnabled) {
+      this.haptics.impactFlip();
+    }
     inst.resetTween?.kill();
 
     // Always advances in the same forward direction towards the right (+Math.PI)
@@ -561,6 +567,7 @@ export class DiscEngine {
 
     this.lighting = new StudioLightingManager(this.scene, this.galleryGroup, this.renderer, w);
     this.sound = new SoundDesignManager(w);
+    this.haptics = new HapticsManager();
     this.scribbleEffect = new ScribbleEffect(w);
     this.galleryGroup.add(this.scribbleEffect.group);
 
@@ -1079,6 +1086,9 @@ export class DiscEngine {
     if (this.prevActiveIdx !== activeIdx) {
       this.sound.playById(w.soundDiscChange, activeIdx);
       this.sound.playById(w.soundDiscSnap, Math.abs(this.flowVel));
+      if (this.hasInteracted && w.hapticsEnabled) {
+        this.haptics.tickDiscChange();
+      }
       this.prevActiveIdx = activeIdx;
     }
 
@@ -1349,6 +1359,7 @@ export class DiscEngine {
   private handlePointerDown = (e: PointerEvent): void => {
     // Only primary left button, ignore clicks originating inside the debug lil-gui or during showcase
     if (this.isRunningShowcase || e.button !== 0 || !e.isPrimary || this.isGuiEvent(e)) return;
+    this.hasInteracted = true;
     void this.sound.resume();
 
     this.cancelIntroAnimation();
@@ -1592,6 +1603,7 @@ export class DiscEngine {
    */
   private handleWheel = (e: WheelEvent): void => {
     if (this.isRunningShowcase || e.ctrlKey || this.isGuiEvent(e)) return;
+    this.hasInteracted = true;
     e.preventDefault();
     this.wheelController.handleWheel(e);
   };
@@ -1604,6 +1616,7 @@ export class DiscEngine {
   private handleKeyDown = (e: KeyboardEvent): void => {
     if (this.isRunningShowcase) return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    this.hasInteracted = true;
     if (e.key === ' ' || e.key === 'Spacebar') {
       e.preventDefault();
       this.flipDisc(this.activeIndex());
@@ -1709,6 +1722,7 @@ export class DiscEngine {
     }
 
     this.sound?.dispose();
+    this.haptics?.destroy();
     this.lighting?.dispose();
     this.gui?.destroy();
     this.pmremTarget?.dispose();
