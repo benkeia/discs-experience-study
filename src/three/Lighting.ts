@@ -31,7 +31,7 @@ export class StudioLightingManager {
     this.scene = scene;
     this.config = config;
 
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.25);
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.08);
     scene.add(this.ambientLight);
 
     this.keyLight = new THREE.DirectionalLight(config.keyColor, config.keyIntensity);
@@ -47,7 +47,7 @@ export class StudioLightingManager {
     scene.add(this.rimLight);
 
     // Directional top-strip light avoiding mobile GPU float LTC shader glitches
-    this.topStrip = new THREE.DirectionalLight(0xffffff, config.topStripIntensity * 0.45);
+    this.topStrip = new THREE.DirectionalLight(0xffffff, config.topStripIntensity * 0.25);
     this.topStrip.position.set(0, 3.2, 3);
     scene.add(this.topStrip);
   }

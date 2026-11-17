@@ -28,9 +28,9 @@ export class HapticsManager {
   }
 
   /**
-   * Micro-pulse sec & franc (16ms) quand un nouveau CD franchit le centre du carrousel.
-   * Sur Android Chrome, appelle directement navigator.vibrate(16) pour dépasser
-   * l'inertie minimale des moteurs physiques sans être bloqué par rAF.
+   * Micro-pulse sec & franc (25ms) quand un nouveau CD franchit le centre du carrousel.
+   * Sur Android Chrome, appelle directement navigator.vibrate(25) pour dépasser
+   * l'inertie minimale des moteurs physiques.
    */
   public tickDiscChange(): void {
     if (!this.isEnabled) return;
@@ -38,7 +38,7 @@ export class HapticsManager {
     // 1. Android Chrome native Vibration API
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       try {
-        navigator.vibrate(16);
+        navigator.vibrate(25);
         return;
       } catch {
         // Fallback to web-haptics below
@@ -49,14 +49,14 @@ export class HapticsManager {
     const h = this.getInstance();
     if (!h) return;
     try {
-      void h.trigger([{ duration: 16, intensity: 0.7 }]);
+      void h.trigger([{ duration: 25, intensity: 0.8 }]);
     } catch {
       // Silent error catching
     }
   }
 
   /**
-   * Impulsion franche (35ms) lors du flip 180° ou du clic sur un CD.
+   * Impulsion franche (50ms) lors du flip 180° ou du clic sur un CD.
    */
   public impactFlip(): void {
     if (!this.isEnabled) return;
@@ -64,7 +64,7 @@ export class HapticsManager {
     // 1. Android Chrome native Vibration API
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       try {
-        navigator.vibrate(35);
+        navigator.vibrate(50);
         return;
       } catch {
         // Fallback to web-haptics below
@@ -75,7 +75,7 @@ export class HapticsManager {
     const h = this.getInstance();
     if (!h) return;
     try {
-      void h.trigger([{ duration: 35, intensity: 1.0 }]);
+      void h.trigger([{ duration: 50, intensity: 1.0 }]);
     } catch {
       // Silent error catching
     }

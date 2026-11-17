@@ -64,16 +64,16 @@ export const DEFAULT_DISC_CONFIG: DiscEngineConfig = {
   cameraFOV: 40,
 
   // Lighting & Atmosphere
-  exposure: 0.95,
-  environmentIntensity: 1.25,
-  keyIntensity: 0.85,
+  exposure: 0.85,
+  environmentIntensity: 0.75,
+  keyIntensity: 0.95,
   keyColor: '#FFF9E8',
   keyX: 3.5,
   keyY: -8,
   fillIntensity: 0.35,
   rimIntensity: 0.85,
   rimColor: '#499FF5',
-  topStripIntensity: 2.2,
+  topStripIntensity: 1.6,
   fogColor: '#FFFFFF',
 
   // Hover & Physics (A24)

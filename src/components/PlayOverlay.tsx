@@ -67,8 +67,15 @@ export const PlayOverlay: React.FC<PlayOverlayProps> = ({
   const handleLaunch = useCallback(async () => {
     if (phase !== 'ready') return;
 
-    // 1. Tactile press depth
+    // 1. Tactile press depth & haptic tick
     setPhase('pressing');
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      try {
+        navigator.vibrate(40);
+      } catch {
+        // Silent
+      }
+    }
 
     // 2. Immediate audio unlock (within user gesture callstack)
     try {
