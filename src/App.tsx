@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { DiscEngine } from './three';
 import { AVATAR_DISCS } from './data/movies';
 import { PlayOverlay } from './components/PlayOverlay';
+import { ShowcaseRecorder } from './components/ShowcaseRecorder';
 
 /**
  * Root React application view.
@@ -13,6 +14,7 @@ export const App: React.FC = () => {
   const engineRef = useRef<DiscEngine | null>(null);
   const [loadProgress, setLoadProgress] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [forceDismissGate, setForceDismissGate] = useState(false);
 
   useEffect(() => {
     const container = canvasContainerRef.current;
@@ -54,11 +56,19 @@ export const App: React.FC = () => {
 
   return (
     <main
-      className="fixed inset-0 w-screen h-screen overflow-hidden bg-white select-none"
+      className="fixed inset-0 w-screen h-screen overflow-hidden bg-white select-none flex items-center justify-center"
       aria-label="3D Interactive Disc Gallery"
     >
       {/* Dedicated Three.js canvas container */}
       <div ref={canvasContainerRef} className="absolute inset-0 w-full h-full pointer-events-auto" />
+
+      {/* Studio Showcase & Video Export Controller */}
+      <ShowcaseRecorder
+        engine={engineRef.current}
+        isReady={isLoaded}
+        containerRef={canvasContainerRef}
+        onStartShowcase={() => setForceDismissGate(true)}
+      />
 
       {/* Minimalist Play Gate with Loader */}
       <PlayOverlay
@@ -66,6 +76,7 @@ export const App: React.FC = () => {
         isReady={isLoaded}
         onUnlockAudio={handleUnlockAudio}
         onStartIntro={handleStartIntro}
+        forceDismiss={forceDismissGate}
       />
 
       {/* Author Credit */}

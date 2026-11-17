@@ -520,12 +520,13 @@ export class DiscEngine {
     this.renderer = new THREE.WebGLRenderer({
       alpha: true,
       antialias: true,
-      powerPreference: 'high-performance'
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: true
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = w.exposure;
-    this.renderer.setClearColor(0x000000, 0);
+    this.renderer.setClearColor(0xffffff, 1);
 
     if ('transmissionResolutionScale' in this.renderer) {
       this.renderer.transmissionResolutionScale = 0.5;
@@ -543,6 +544,7 @@ export class DiscEngine {
     this.container.replaceChildren(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0xffffff);
     this.scene.fog = new THREE.Fog(w.fogColor, 7, 14);
 
     this.camera = new THREE.PerspectiveCamera(w.cameraFOV, 1, 0.1, 100);
@@ -775,6 +777,68 @@ export class DiscEngine {
     });
   }
 
+  /**
+   * Automated showcase sequence for clean, professional video exports (16 seconds).
+   * Sequences smooth carousel glides, 180° flip to Bragg holographic optical diffraction,
+   * gentle 3D light angles, and dynamic momentum flick without any manual intervention.
+   */
+  public runShowcaseSequence(onUpdate?: (percent: number) => void): Promise<void> {
+    return new Promise((resolve) => {
+      this.cancelIntroAnimation();
+
+      const tl = gsap.timeline({
+        onUpdate: () => {
+          onUpdate?.(Math.round(tl.progress() * 100));
+        },
+        onComplete: () => {
+          resolve();
+        }
+      });
+
+      // 0.0s: Center spin & cascade entrance
+      tl.call(() => this.playIntroAnimation(), [], 0);
+
+      // +1.8s: Glide to Disc 1 (Avatar 2)
+      tl.call(() => this.navigateTo(1, 'snap'), [], 1.8);
+
+      // +3.6s: Glide to Disc 2 (Whiplash)
+      tl.call(() => this.navigateTo(2, 'snap'), [], 3.6);
+
+      // +5.4s: Glide to Disc 3 (Spider-Man)
+      tl.call(() => this.navigateTo(3, 'snap'), [], 5.4);
+
+      // +7.2s: Flip Disc 3 to reveal the optical diffraction CD back
+      tl.call(() => this.flipDisc(3), [], 7.2);
+
+      // +9.0s: Subtle 3D oscillation under studio lights to highlight iridescent Bragg tracks
+      tl.call(() => {
+        const inst = this.instances[3];
+        if (inst) {
+          gsap.to(inst, {
+            spinX: 0.16,
+            spinY: inst.baseFlipY + 0.28,
+            duration: 1.15,
+            yoyo: true,
+            repeat: 1,
+            ease: 'sine.inOut'
+          });
+        }
+      }, [], 9.0);
+
+      // +11.8s: Flip Disc 3 back to front artwork
+      tl.call(() => this.flipDisc(3), [], 11.8);
+
+      // +13.6s: Fast dynamic flick momentum to Disc 5 (Parasite)
+      tl.call(() => this.navigateTo(5, 'flick'), [], 13.6);
+
+      // +15.5s: Return smoothly to Disc 0 (Avatar)
+      tl.call(() => this.navigateTo(0, 'snap'), [], 15.5);
+
+      // 16.5s: Settle and finish
+      tl.set({}, {}, 16.5);
+    });
+  }
+
   private stepLayout(dt: number, immediate = false): void {
     const w = CONFIG;
     const activeIdx = this.activeIndex();
@@ -989,15 +1053,27 @@ export class DiscEngine {
     this.renderer.render(this.scene, this.camera);
   };
 
-  private handleResize = () => {
+  public handleResize = () => {
     if (!this.renderer || !this.camera) return;
     const width = Math.max(1, this.container.clientWidth || window.innerWidth);
     const height = Math.max(1, this.container.clientHeight || window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
+
+    // Portrait / vertical compensation (Stories & Reels 9:16)
+    if (this.camera.aspect < 1) {
+      this.camera.position.z = CONFIG.cameraDistance / (this.camera.aspect * 1.35);
+    } else {
+      this.camera.position.z = CONFIG.cameraDistance;
+    }
+
     this.camera.updateProjectionMatrix();
   };
+
+  public getCanvas(): HTMLCanvasElement {
+    return this.renderer.domElement;
+  }
 
   private isGuiEvent(e: Event): boolean {
     return e.target instanceof Element && !!e.target.closest('.lil-gui');

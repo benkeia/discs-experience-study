@@ -230,5 +230,45 @@ export function setupDebugGUI(
     gui.hide();
   }
 
+  // Ensure all form controls (inputs, selects, textareas) created by lil-gui
+  // have unique id, name, and autocomplete="off" attributes to resolve the DevTools audit:
+  // "A form field element should have an id or name attribute".
+  const sanitizeInputs = () => {
+    if (!gui.domElement) return;
+    const formElements = gui.domElement.querySelectorAll<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >('input, select, textarea');
+
+    formElements.forEach((el, index) => {
+      const parentController = el.closest('.controller');
+      const label = parentController?.querySelector('.name')?.textContent?.trim();
+      const slug = label
+        ? label
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+        : 'field';
+      const uniqueName = `gui_${slug}_${index}`;
+      if (!el.id) el.id = uniqueName;
+      if (!el.name) el.name = uniqueName;
+      el.setAttribute('autocomplete', 'off');
+    });
+  };
+
+  sanitizeInputs();
+
+  const observer = new MutationObserver(() => {
+    sanitizeInputs();
+  });
+  observer.observe(gui.domElement, { childList: true, subtree: true });
+
+  const originalDestroy = gui.destroy.bind(gui);
+  gui.destroy = () => {
+    observer.disconnect();
+    originalDestroy();
+  };
+
   return gui;
 }

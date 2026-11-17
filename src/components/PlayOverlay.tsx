@@ -5,6 +5,7 @@ interface PlayOverlayProps {
   isReady: boolean;
   onUnlockAudio: () => Promise<void> | void;
   onStartIntro: () => void;
+  forceDismiss?: boolean;
 }
 
 /**
@@ -18,12 +19,19 @@ export const PlayOverlay: React.FC<PlayOverlayProps> = ({
   progress,
   isReady,
   onUnlockAudio,
-  onStartIntro
+  onStartIntro,
+  forceDismiss
 }) => {
   const [displayProgress, setDisplayProgress] = useState(0);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'pressing' | 'fading' | 'gone'>('loading');
   const isMountedRef = useRef(true);
   const launchTimersRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    if (forceDismiss) {
+      setPhase('gone');
+    }
+  }, [forceDismiss]);
 
   useEffect(() => {
     isMountedRef.current = true;
